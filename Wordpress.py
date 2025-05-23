@@ -7,7 +7,7 @@ import alive_progress
 from alive_progress import alive_bar
 
 
-class Wordpress:
+class Crawler:
     def __init__(self, url):
         self.url = url
         self.headers = {
@@ -97,5 +97,5 @@ from time import sleep
 
 
 if __name__ == "__main__":
-    wordpress = Wordpress("https://turismo.comuneacqui.it")
+    wordpress = Crawler("https://turismo.comuneacqui.it")
     wordpress.run()

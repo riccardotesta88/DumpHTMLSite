@@ -7,6 +7,11 @@ from alive_progress import alive_bar
 
 class Crawler:
     def __init__(self, url):
+        '''
+        Wordpress Crawler
+        General parameters and initialization variables
+        :param url: default wordpress url xml sitemap
+        '''
         self.url = url
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -15,14 +20,26 @@ class Crawler:
         self.session.headers.update(self.headers)
         self.__setLocalSaveFolder("wordpress")
         self.namespaces = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+        self.lastr_update = 0
+
 
     def readXMLSitemap(self, name="sitemap",url=None):
+        '''
+        Estract Sitemap from xml structure
+        :param name: file name
+        :param url: file url (optional)
+        :return:
+        '''
+
+        print(f'Estract Sitemap: {name}')
         if not url:
             sitemap_url = f"{self.url}/{name}.xml"
         else:
             sitemap_url = url
         response = self.session.get(sitemap_url)
         result=response.text.lstrip()
+
+        print(f'Text sanitize: {len(result)}')
         for k in ['\n', '\r', '\t']:
             result = result.replace(k, '')
         return result
@@ -38,7 +55,7 @@ class Crawler:
 
             sub_sitemaps.append(loc)
 
-        print(f'sub_sitemaps: {len(sub_sitemaps)}')
+        print(f'Founded Sitemap ulrs type documents: {len(sub_sitemaps)}')
         return sub_sitemaps[:max_depth]
 
     def extractRecordPage(self, xml_sitemap):
@@ -64,6 +81,7 @@ class Crawler:
                 with open(f"{self.folder_path}/{file_name}", "wb") as file:
                     file.write(response.text.encode('utf-8'))
                 sleep(0.1)
+                self.lastr_update += 1
 
 
     def __setLocalSaveFolder(self, folder_path):
@@ -79,7 +97,7 @@ class Crawler:
             sub_sitemaps = self.parseSubXMLSitemap(xml_sitemap)
 
             for sub_sitemap in sub_sitemaps:
-                print(f'\n{sub_sitemap}\n')
+                print(f'{sub_sitemap}\n')
                 xml_sitemap_in = self.readXMLSitemap(url=sub_sitemap)
 
 

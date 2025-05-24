@@ -1,9 +1,6 @@
-from itertools import count
-
 import requests
 import os
 import xml.etree.ElementTree as ET
-import alive_progress
 from alive_progress import alive_bar
 
 

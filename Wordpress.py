@@ -1,7 +1,8 @@
 import requests
 import os
 import xml.etree.ElementTree as ET
-
+import time
+from time import sleep
 from alive_progress import alive_bar
 
 
@@ -44,19 +45,25 @@ class Crawler:
             result = result.replace(k, '')
         return result
 
-    def parseSubXMLSitemap(self, xml_sitemap, max_depth=2):
+    def parseSubXMLSitemap(self, xml_sitemap, structure=['post','page'],max_depth=2):
 
         root = ET.fromstring(xml_sitemap)
 
         sub_sitemaps = []
         for sitemap in root.findall('sm:sitemap', self.namespaces):
-            loc = sitemap.find('sm:loc', self.namespaces).text
-            lastmod = sitemap.find('sm:lastmod', self.namespaces).text
+            # Controllo strutture sitemaps
+            if sitemap.find('sm:loc', self.namespaces).text.split("/")[-1]  in structure:
+                loc = sitemap.find('sm:loc', self.namespaces).text
+                lastmod = sitemap.find('sm:lastmod', self.namespaces).text
 
-            sub_sitemaps.append(loc)
+                sub_sitemaps.append(loc)
 
         print(f'Founded Sitemap ulrs type documents: {len(sub_sitemaps)}')
-        return sub_sitemaps[:max_depth]
+        if max_depth == 0:
+            return sub_sitemaps
+        else:
+            max_depth = len(sub_sitemaps)
+            return sub_sitemaps[:max_depth]
 
     def extractRecordPage(self, xml_sitemap):
 
@@ -109,7 +116,7 @@ class Crawler:
 
 
 
-from time import sleep
+
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import time
 from time import sleep
 from alive_progress import alive_bar
+import re
 
 
 class Crawler:
@@ -23,8 +24,7 @@ class Crawler:
         self.namespaces = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
         self.lastr_update = 0
 
-
-    def readXMLSitemap(self, name="sitemap",url=None):
+    def readXMLSitemap(self, name="sitemap", url=None):
         '''
         Estract Sitemap from xml structure
         :param name: file name
@@ -38,24 +38,23 @@ class Crawler:
         else:
             sitemap_url = url
         response = self.session.get(sitemap_url)
-        result=response.text.lstrip()
+        result = response.text.lstrip()
 
         print(f'Text sanitize: {len(result)}')
         for k in ['\n', '\r', '\t']:
             result = result.replace(k, '')
         return result
 
-    def parseSubXMLSitemap(self, xml_sitemap, structure=['post','page'],max_depth=2):
+    def parseSubXMLSitemap(self, xml_sitemap, structure=['post', 'page'], max_depth=2):
 
         root = ET.fromstring(xml_sitemap)
 
         sub_sitemaps = []
         for sitemap in root.findall('sm:sitemap', self.namespaces):
             # Controllo strutture sitemaps
-            if sitemap.find('sm:loc', self.namespaces).text.split("/")[-1]  in structure:
-                loc = sitemap.find('sm:loc', self.namespaces).text
-                lastmod = sitemap.find('sm:lastmod', self.namespaces).text
-
+            loc = sitemap.find('sm:loc', self.namespaces).text
+            # lastmod = sitemap.find('sm:lastmod', self.namespaces).text
+            if re.search('|'.join(structure), loc):
                 sub_sitemaps.append(loc)
 
         print(f'Founded Sitemap ulrs type documents: {len(sub_sitemaps)}')
@@ -65,11 +64,11 @@ class Crawler:
             max_depth = len(sub_sitemaps)
             return sub_sitemaps[:max_depth]
 
-    def extractRecordPage(self, xml_sitemap):
 
+    def extractRecordPage(self, xml_sitemap):
         root = ET.fromstring(xml_sitemap)
         html_urls = []
-        records=root.findall('sm:url', self.namespaces)
+        records = root.findall('sm:url', self.namespaces)
         for sitemap in records:
             loc = sitemap.find('sm:loc', self.namespaces).text
             lastmod = sitemap.find('sm:lastmod', self.namespaces).text
@@ -78,6 +77,7 @@ class Crawler:
 
         print(f'\nRecord: {len(records)}')
         return html_urls
+
 
     def urlDownload(self, html_urls):
         for url in html_urls:
@@ -98,25 +98,21 @@ class Crawler:
             os.makedirs(self.folder_path)
         return self.folder_path
 
+
     def run(self):
+        xml_sitemap = self.readXMLSitemap()
+        sub_sitemaps = self.parseSubXMLSitemap(xml_sitemap)
 
-            xml_sitemap = self.readXMLSitemap()
-            sub_sitemaps = self.parseSubXMLSitemap(xml_sitemap)
+        for sub_sitemap in sub_sitemaps:
+            print(f'{sub_sitemap}\n')
+            xml_sitemap_in = self.readXMLSitemap(url=sub_sitemap)
+            pages = self.extractRecordPage(xml_sitemap_in)
 
-            for sub_sitemap in sub_sitemaps:
-                print(f'{sub_sitemap}\n')
-                xml_sitemap_in = self.readXMLSitemap(url=sub_sitemap)
+            with alive_bar(len(pages), force_tty=True) as bar:
+                for page in pages:
 
-
-                pages=self.extractRecordPage(xml_sitemap_in)
-                with alive_bar(len(pages), force_tty=True) as bar:
-                    for page in pages:
-                        self.urlDownload([page])
-                        bar()
-
-
-
-
+                    self.urlDownload([page])
+                    bar()
 
 
 if __name__ == "__main__":

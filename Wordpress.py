@@ -8,7 +8,8 @@ import re
 
 
 class Crawler:
-    def __init__(self, url):
+
+    def __init__(self, url:str):
         '''
         Wordpress Crawler
         General parameters and initialization variables
@@ -20,11 +21,12 @@ class Crawler:
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
-        self.__setLocalSaveFolder("wordpress")
+        self._setLocalSaveFolder("wordpress_{timestamp}".format(timestamp=time.strftime("%Y-%m-%d")))
         self.namespaces = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
         self.lastr_update = 0
+        self.datainsight={}
 
-    def readXMLSitemap(self, name="sitemap", url=None):
+    def readXMLSitemap(self, name:str="sitemap", url:str=None)->str:
         '''
         Estract Sitemap from xml structure
         :param name: file name
@@ -45,7 +47,14 @@ class Crawler:
             result = result.replace(k, '')
         return result
 
-    def parseSubXMLSitemap(self, xml_sitemap, structure=['post', 'page'], max_depth=2):
+    def parseSubXMLSitemap(self, xml_sitemap:str, structure:list=['post', 'page'], max_depth:int=2)->list:
+        '''
+        Parse xml sitemap
+        :param xml_sitemap: string xml data
+        :param structure: [post, page, category, tag, author] tag types
+        :param max_depth: max depth sitemap
+        :return:
+        '''
 
         root = ET.fromstring(xml_sitemap)
 
@@ -66,7 +75,10 @@ class Crawler:
 
 
     def extractRecordPage(self, xml_sitemap):
-        root = ET.fromstring(xml_sitemap)
+
+        parsering = ET.XMLParser(encoding="utf-8")
+        root = ET.fromstring(xml_sitemap, parser=parsering)
+
         html_urls = []
         records = root.findall('sm:url', self.namespaces)
         for sitemap in records:
@@ -82,16 +94,17 @@ class Crawler:
     def urlDownload(self, html_urls):
         for url in html_urls:
 
-            file_name = '.hmtl'.join(url.split("/")[-2:])
+            file_name = '.html'.join(url.split("/")[-2:])
             if not os.path.exists(f"{self.folder_path}/{file_name}"):
                 response = self.session.get(url)
                 with open(f"{self.folder_path}/{file_name}", "wb") as file:
+                    self.__insigth('td_pages')
                     file.write(response.text.encode('utf-8'))
                 sleep(0.1)
                 self.lastr_update += 1
 
 
-    def __setLocalSaveFolder(self, folder_path):
+    def _setLocalSaveFolder(self, folder_path):
         self.folder_path = os.realpath(folder_path) if os.path.isabs(folder_path) else os.getcwd() + "/" + folder_path
 
         if not os.path.exists(self.folder_path):
@@ -108,13 +121,39 @@ class Crawler:
             xml_sitemap_in = self.readXMLSitemap(url=sub_sitemap)
             pages = self.extractRecordPage(xml_sitemap_in)
 
-            with alive_bar(len(pages), force_tty=True) as bar:
-                for page in pages:
+            self.__insigth(f'{sub_sitemap}_pages', mode=None, value=len(pages))
 
+            with alive_bar(len(pages), force_tty=True) as bar:
+
+                for page in pages:
                     self.urlDownload([page])
                     bar()
 
+            self.__insigth(f'{sub_sitemap}_downloaded', mode=None, value=self.datainsight['td_pages'])
+            self.__insigth('td_pages', mode=None, value=0)
+
+    def __insigth(self, element, value=None, mode='sum'):
+        '''
+        Funzione per aggiornare l'insight dei dati dell'ultima esecuzione
+        :param element: nome chiave memoriazzione
+        :param value: valore da memorizzare
+        :param mode: tipolo di memorizzazione
+        :return:
+        '''
+        if mode == 'sum':
+            self.datainsight.update(
+                {element: 0} if not element in self.datainsight
+                else {element: self.datainsight[element] + 1}
+            )
+        else:
+            self.datainsight.update(
+                {element: 0} if not element in self.datainsight or not value
+                else {element: value}
+            )
 
 if __name__ == "__main__":
-    wordpress = Crawler("https://turismo.comuneacqui.it")
+
+    wordpress = Crawler("https://turismo.comuneacqui.it/")
+    wordpress._setLocalSaveFolder("wordpress_dsada")
     wordpress.run()
+    print(wordpress.datainsight)

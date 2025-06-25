@@ -9,7 +9,7 @@ import re
 
 class Crawler:
 
-    def __init__(self, url:str):
+    def __init__(self, url: str):
         '''
         Wordpress Crawler
         General parameters and initialization variables
@@ -24,9 +24,9 @@ class Crawler:
         self._setLocalSaveFolder("wordpress_{timestamp}".format(timestamp=time.strftime("%Y-%m-%d")))
         self.namespaces = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
         self.lastr_update = 0
-        self.datainsight={}
+        self.datainsight = {}
 
-    def readXMLSitemap(self, name:str="sitemap", url:str=None)->str:
+    def readXMLSitemap(self, name: str = "sitemap", url: str = None) -> str:
         '''
         Estract Sitemap from xml structure
         :param name: file name
@@ -47,7 +47,7 @@ class Crawler:
             result = result.replace(k, '')
         return result
 
-    def parseSubXMLSitemap(self, xml_sitemap:str, structure:list=['post', 'page'], max_depth:int=2)->list:
+    def parseSubXMLSitemap(self, xml_sitemap: str, structure: list = ['post', 'page'], max_depth: int = 2) -> list:
         '''
         Parse xml sitemap
         :param xml_sitemap: string xml data
@@ -73,8 +73,7 @@ class Crawler:
             max_depth = len(sub_sitemaps)
             return sub_sitemaps[:max_depth]
 
-
-    def extractRecordPage(self, xml_sitemap):
+    def extractRecordPage(self, xml_sitemap: str) -> list:
 
         parsering = ET.XMLParser(encoding="utf-8")
         root = ET.fromstring(xml_sitemap, parser=parsering)
@@ -90,8 +89,7 @@ class Crawler:
         print(f'\nRecord: {len(records)}')
         return html_urls
 
-
-    def urlDownload(self, html_urls):
+    def urlDownload(self, html_urls: str) -> None:
         for url in html_urls:
 
             file_name = '.html'.join(url.split("/")[-2:])
@@ -103,20 +101,30 @@ class Crawler:
                 sleep(0.1)
                 self.lastr_update += 1
 
+    def _setLocalSaveFolder(self, folder_path: str) -> str:
 
-    def _setLocalSaveFolder(self, folder_path):
-        self.folder_path = os.realpath(folder_path) if os.path.isabs(folder_path) else os.getcwd() + "/" + folder_path
+        try:
+
+            self.folder_path = os.path.realpath(folder_path)
+
+
+        except FileNotFoundError:
+            self.folder_path = os.getcwd() + "/" + folder_path
 
         if not os.path.exists(self.folder_path):
             os.makedirs(self.folder_path)
         return self.folder_path
-
 
     def run(self):
         xml_sitemap = self.readXMLSitemap()
         sub_sitemaps = self.parseSubXMLSitemap(xml_sitemap)
 
         for sub_sitemap in sub_sitemaps:
+
+            innerfolder = sub_sitemap.split("/")[-1].replace('-', '_').replace('.xml', '')
+            # crea cartella per salvataggio dati
+            self._setLocalSaveFolder(f"{self.folder_path}/{innerfolder}")
+
             print(f'{sub_sitemap}\n')
             xml_sitemap_in = self.readXMLSitemap(url=sub_sitemap)
             pages = self.extractRecordPage(xml_sitemap_in)
@@ -131,6 +139,7 @@ class Crawler:
 
             self.__insigth(f'{sub_sitemap}_downloaded', mode=None, value=self.datainsight['td_pages'])
             self.__insigth('td_pages', mode=None, value=0)
+
 
     def __insigth(self, element, value=None, mode='sum'):
         '''
@@ -147,13 +156,13 @@ class Crawler:
             )
         else:
             self.datainsight.update(
-                {element: 0} if not element in self.datainsight or not value
+                {element: 0} if (not element in self.datainsight and not value)
                 else {element: value}
             )
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     wordpress = Crawler("https://turismo.comuneacqui.it/")
-    wordpress._setLocalSaveFolder("wordpress_dsada")
+    wordpress._setLocalSaveFolder("wordpress_{timestamp}".format(timestamp=time.strftime("%Y-%m-%d")))
     wordpress.run()
     print(wordpress.datainsight)
